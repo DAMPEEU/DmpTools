@@ -19,11 +19,12 @@ Error codes:
 1002 : House-Keeping tree is missing in flight data
 1003 : Bad particle
 1004 : Zero events - file is readable
-2000 : Cannot access file / cannot read file
 1005 : Events outside of energy range
+2000 : Cannot access file / cannot read file
 3000 : C++ internal error
 
 '''
+from __future__ import division, absolute_import, print_function
 
 import json
 import os
@@ -33,6 +34,7 @@ def json_load_byteified(file_handle):
 	'''
 	Crawler output is unicode. Change to UTF-8 for better handling
 	'''
+
 	def _byteify(data, ignore_dicts = False):
 		if isinstance(data, unicode):
 			return data.encode('utf-8')
@@ -53,7 +55,9 @@ def identifyEnergyRange(filenamedir):
 	'''
 	Identifies energy range by looking at the name of the file (not at the event header)
 	
-	String manipulations are evil
+	From "allHe4-v6r0p10_10TeV_100TeV-FTFP.noOrb.649644.mc.root" returns: (10000000.0, 100000000.0)
+	
+	Whole lot of bad string manipulations
 	'''
 	
 	filename = os.path.basename(filenamedir)
@@ -86,9 +90,16 @@ def ana(filename):
 	with open(filename,'r') as f:	
 		diclist = json_load_byteified(f)
 	
-	eMin,eMax = identifyEnergyRange(diclist[0]['lfn'])
+	try:
+		eMin,eMax = identifyEnergyRange(diclist[0]['lfn'])
+	except Exception as e:
+		print("Error when identifying energy range: ", e)
+		eMin = 0
+		eMax = 0
 	emins = []
 	emaxs = []
+	
+	er_str = []
 	
 	# Explicitly have one list per possible error code - at the end I want empty files for error codes that did not appear (instead of having no file at all)
 	fichiers = {'0':[],'1001':[],'1002':[],'1003':[],'1004':[],'2000':[],'1005':[],'3000':[]}
@@ -100,17 +111,19 @@ def ana(filename):
 		if iteration['error_code'] == 0:
 			emins.append(iteration['emin'])
 			emaxs.append(iteration['emax'])
+			er_str.append( str(iteration['emin']) + '-' + str(iteration['emax'])  )
 			goodDicList.append(iteration)
 			
 	with open(filename.replace('.json','.good.json'),'w') as f:
 		json.dump(goodDicList,f)
 			
 	if len(set(emins)) > 1 or len(set(emaxs)) > 1:		# Multiple energy ranges found
-		print "Found multiple energy ranges! File: ", filename.replace('.json','')
+		print("Found multiple energy ranges! File: ", filename.replace('.json',''))
 		badEnergies = True
 	elif eMin not in emins or eMax not in emaxs: 		# Wrong energy range
+		print("Found bad energy range! File: ", filename.replace('.json','') )
 		badEnergies = True
-		print "Found bad energy range! File: ", filename.replace('.json','')
+		
 	else:
 		badEnergies = False
 	
@@ -124,6 +137,8 @@ def ana(filename):
 		with open(outstring,'w') as thefile:
 			for item in fichiers[k]:
 				thefile.write("%s\n" % item)
+				
+	###			
 	if badEnergies:
 		if not os.path.isdir(dirname+'/energies'): os.mkdir(dirname+'/energies')
 		
@@ -133,13 +148,13 @@ def ana(filename):
 		for iteration in diclist:
 			if iteration['error_code'] == 0:
 				
-				if iteration['emin'] > 1e+6: key1 = str(iteration['emin']/1e+6)+'TeV'
-				elif iteration['emin'] > 1e+3: key1 = str(iteration['emin']/1e+3)+'GeV'
-				else: key1 = str(iteration['emin'])+'MeV'
+				if iteration['emin'] > 1e+6: key1 = str(int(iteration['emin']/1e+6))+'TeV'
+				elif iteration['emin'] > 1e+3: key1 = str(int(iteration['emin']/1e+3))+'GeV'
+				else: key1 = str(int(iteration['emin']))+'MeV'
 				
-				if iteration['emax'] > 1e+6: key2 = str(iteration['emax']/1e+6)+'TeV'
-				elif iteration['emax'] > 1e+3: key2 = str(iteration['emax']/1e+3)+'GeV'
-				else: key2 = str(iteration['emax'])+'MeV'
+				if iteration['emax'] > 1e+6: key2 = str(int(iteration['emax']/1e+6))+'TeV'
+				elif iteration['emax'] > 1e+3: key2 = str(int(iteration['emax']/1e+3))+'GeV'
+				else: key2 = str(int(iteration['emax']))+'MeV'
 				
 				key = key1 + '_' + key2
 				try: 
@@ -153,6 +168,8 @@ def ana(filename):
 			with open(outstring,'w') as thefile:
 				for item in dicEnergy[key]:
 					thefile.write("%s\n" % item)
+	
+	
 	
 
 if __name__ == '__main__':

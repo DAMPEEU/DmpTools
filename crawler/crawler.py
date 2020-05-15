@@ -60,7 +60,7 @@ def insertDocuments(mongopath,docs, debug=False):
 
 error_code = 0
 def main(infile, debug=False):
-    pdgs = dict(Proton=2212, Electron=11, Muon=13, Gamma=22,He = 2, Li = 3, Be = 4, B = 5, C = 6, N = 7, O = 8)
+    pdgs = dict(Proton=2212, Electron=11, Muon=13, Gamma=22,He = 2, Li = 3, Be = 4, B = 5, C = 6, N = 7, O = 8)  #fixme : doesn't include new syntax and new ions of 6.0.10 production
     chksum = None
     global error_code
 
